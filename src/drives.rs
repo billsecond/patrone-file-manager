@@ -405,13 +405,17 @@ pub async fn mount_image(
         gio::SubprocessFlags::STDOUT_PIPE | gio::SubprocessFlags::STDERR_PIPE,
     );
     launcher.setenv("LC_ALL", "C", true);
-    let argv = [
-        std::ffi::OsStr::new("udisksctl"),
-        std::ffi::OsStr::new("loop-setup"),
-        std::ffi::OsStr::new("--read-only"),
-        std::ffi::OsStr::new("--file"),
-        path.as_os_str(),
-    ];
+    // (on the computer, in the Flatpak: LC_ALL goes with it)
+    let argv = crate::host::argv(
+        ["udisksctl", "loop-setup", "--read-only", "--file"]
+            .into_iter()
+            .map(Into::into)
+            .chain([path.clone().into_os_string()])
+            .collect(),
+        None,
+        &[("LC_ALL".into(), "C".into())],
+    );
+    let argv: Vec<&std::ffi::OsStr> = argv.iter().map(|arg| arg.as_os_str()).collect();
     let process = launcher.spawn(&argv).map_err(|error| error.to_string())?;
     let (stdout, stderr) = process
         .communicate_utf8_future(None)
@@ -482,12 +486,16 @@ pub async fn mount_image(
 /// Detaches an image's drive that couldn't be mounted.
 async fn detach(device: &str) {
     let launcher = gio::SubprocessLauncher::new(gio::SubprocessFlags::STDERR_SILENCE);
-    if let Ok(process) = launcher.spawn(&[
-        std::ffi::OsStr::new("udisksctl"),
-        std::ffi::OsStr::new("loop-delete"),
-        std::ffi::OsStr::new("--block-device"),
-        std::ffi::OsStr::new(device),
-    ]) {
+    let argv = crate::host::argv(
+        ["udisksctl", "loop-delete", "--block-device", device]
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+        None,
+        &[],
+    );
+    let argv: Vec<&std::ffi::OsStr> = argv.iter().map(|arg| arg.as_os_str()).collect();
+    if let Ok(process) = launcher.spawn(&argv) {
         let _ = process.wait_future().await;
     }
 }

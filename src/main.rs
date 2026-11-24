@@ -20,6 +20,7 @@ mod gallery;
 mod glyph;
 mod hints;
 mod home;
+mod host;
 mod icons;
 mod live_style;
 mod location;
@@ -67,13 +68,51 @@ Opens a File Manager window for each folder. A file opens in its app.
       --quit         Close every File Manager window
       --desktop      Draw the desktop and the desktop files panel (the
                      taskbar starts it, and hosts its windows)
+      --list FOLDER  Print the names in a folder, as a tab reads it, and quit
   -h, --help         Show this help
   -V, --version      Show the version
 ";
 
 fn main() -> glib::ExitCode {
+    host::use_the_accounts_folders();
     gio::resources_register_include!("resources.gresource").expect("the app's resources");
+    // A folder's names as a tab reads it: in the Flatpak, the computer's
+    // own system folders too (host::inside)
+    if std::env::args().nth(1).as_deref() == Some("--list") {
+        let Some(folder) = std::env::args().nth(2) else {
+            eprintln!("patrone-file-manager: --list needs a folder");
+            return glib::ExitCode::FAILURE;
+        };
+        let folder = host::inside_file(&gio::File::for_commandline_arg(&folder));
+        let Ok(entries) = folder.enumerate_children(
+            "standard::name",
+            gio::FileQueryInfoFlags::NONE,
+            gio::Cancellable::NONE,
+        ) else {
+            eprintln!(
+                "patrone-file-manager: can't read {}",
+                util::display_path(&folder)
+            );
+            return glib::ExitCode::FAILURE;
+        };
+        let mut names: Vec<String> = entries
+            .flatten()
+            .map(|info| info.name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        for name in names {
+            println!("{name}");
+        }
+        return glib::ExitCode::SUCCESS;
+    }
     if std::env::args().nth(1).as_deref() == Some("--desktop") {
+        // The desktop is Patrone's taskbar's, on PatroneOS
+        if host::sandboxed() {
+            eprintln!(
+                "patrone-file-manager: --desktop is for PatroneOS's desktop, not the Flatpak"
+            );
+            return glib::ExitCode::FAILURE;
+        }
         return desktop::run();
     }
     let app = gtk::Application::builder()
@@ -136,7 +175,10 @@ pub fn load_style() {
         &over_theme,
         gtk::STYLE_PROVIDER_PRIORITY_USER + 1,
     );
-    live_style::follow(&display);
+    // Patrone Settings' themes are PatroneOS's
+    if !host::sandboxed() {
+        live_style::follow(&display);
+    }
     gtk::Window::set_default_icon_name(APP_ID);
 }
 

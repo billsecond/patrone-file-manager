@@ -469,13 +469,16 @@ fn open_with_submenu(window: &Window, menu: &Rc<Menu>, selected: &[gio::FileInfo
     let files: Vec<gio::File> = selected.iter().filter_map(util::file_of).collect();
     let w = window.clone();
     menu.submenu(Icon::Glyph("open-with"), "Open with", true, move |sub| {
-        let default = gio::AppInfo::default_for_type(&mime, false);
+        // The sandbox's apps aren't the computer's: in the Flatpak, only
+        // "Choose another app", which asks the desktop's portal
+        let apps_here = !crate::host::sandboxed();
+        let default = gio::AppInfo::default_for_type(&mime, false).filter(|_| apps_here);
         let mut apps = gio::AppInfo::recommended_for_type(&mime);
         if let Some(default) = &default {
             apps.retain(|app| !app.equal(default));
             apps.insert(0, default.clone());
         }
-        for app in apps.into_iter().take(12) {
+        for app in apps.into_iter().filter(|_| apps_here).take(12) {
             let icon = app.icon().map(Icon::Gicon).unwrap_or(Icon::None);
             let (w, files, app) = (w.clone(), files.clone(), app.clone());
             sub.item(icon, &app.display_name(), None, true, move || {
@@ -1484,9 +1487,7 @@ pub fn nav_menu(
                     true,
                     move || {
                         if let Some(path) = &path {
-                            let _ = std::process::Command::new("xdg-terminal-exec")
-                                .current_dir(path)
-                                .spawn();
+                            crate::run::terminal(path, None);
                         }
                     },
                 );

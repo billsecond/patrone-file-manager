@@ -301,7 +301,7 @@ fn archive_ending(name: &str) -> Option<&'static str> {
 
 /// Patrone Unpack, when it's installed.
 pub fn unpack() -> Option<PathBuf> {
-    gtk::glib::find_program_in_path("patrone-unpack")
+    crate::host::find_program("patrone-unpack")
 }
 
 /// Whether Extract All… and Extract here can take this file: ZIP and TAR
@@ -316,7 +316,7 @@ pub fn run_unpack<S: AsRef<std::ffi::OsStr>>(arguments: &[S]) -> bool {
     let Some(unpack) = unpack() else {
         return false;
     };
-    match std::process::Command::new(unpack).args(arguments).spawn() {
+    match crate::host::command(unpack).args(arguments).spawn() {
         Ok(mut child) => {
             std::thread::spawn(move || {
                 let _ = child.wait();

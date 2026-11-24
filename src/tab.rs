@@ -172,6 +172,11 @@ impl Tab {
 
     /// Shows a place without touching the history.
     fn show(&self, location: Location) {
+        // The computer's system folders, where the Flatpak can read them
+        let location = match location {
+            Location::Folder(file) => Location::Folder(crate::host::inside_file(&file)),
+            other => other,
+        };
         let generation = self.generation.get() + 1;
         self.generation.set(generation);
         if let Location::Folder(file) = &location
