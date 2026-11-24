@@ -93,7 +93,7 @@ impl Location {
                         Location::Folder(places::network())
                     });
                 }
-                match file.parent() {
+                match crate::host::parent(file) {
                     Some(parent) => Some(Location::Folder(parent)),
                     None if !file.is_native() => Some(Location::Folder(places::network())),
                     None => Some(Location::ThisPc),
@@ -120,7 +120,7 @@ impl Location {
                 if at_anchor {
                     break;
                 }
-                current = folder.parent();
+                current = crate::host::parent(&folder);
             }
             chain.reverse();
             chain
@@ -161,7 +161,7 @@ impl Location {
             Location::ThisPc => "Computer".into(),
             Location::Folder(file) if places::is_trash_root(file) => "Recycle Bin".into(),
             Location::Folder(file) => match file.path() {
-                Some(path) => path.to_string_lossy().into_owned(),
+                Some(path) => crate::host::outside(&path).to_string_lossy().into_owned(),
                 None => file.parse_name().into(),
             },
             Location::Search { root, .. } => Location::Folder(root.clone()).edit_text(),

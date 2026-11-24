@@ -583,6 +583,7 @@ fn file_manager_program(running: Option<PathBuf>) -> OsString {
 
 /// Starts a program and lets it run, with nothing of the desktop's.
 fn spawn(argv: &[OsString]) {
+    let argv = crate::host::argv(argv.to_vec(), None, &[]);
     let argv: Vec<&std::ffi::OsStr> = argv.iter().map(OsString::as_os_str).collect();
     match gio::Subprocess::newv(
         &argv,
@@ -603,8 +604,12 @@ pub fn display_settings() {
 
 /// Personalize: Patrone Settings' Wallpaper page, or GNOME's Appearance.
 pub fn personalize() {
-    if glib::find_program_in_path("patrone-settings").is_some() {
-        spawn(&["patrone-settings".into(), "--page".into(), "wallpaper".into()]);
+    if crate::host::find_program("patrone-settings").is_some() {
+        spawn(&[
+            "patrone-settings".into(),
+            "--page".into(),
+            "wallpaper".into(),
+        ]);
     } else {
         spawn(&["gnome-control-center".into(), "background".into()]);
     }

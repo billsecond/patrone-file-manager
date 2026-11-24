@@ -57,6 +57,14 @@ pub fn show_choose_default(window: &Window, files: Vec<gio::File>, mime: String)
 }
 
 fn run(window: &Window, files: Vec<gio::File>, mime: String, default_only: bool) {
+    // In the Flatpak, the computer's apps, through the desktop's portal,
+    // which also asks whether to always use the one picked
+    if crate::host::sandboxed() {
+        if let Some(file) = files.first() {
+            commands::open_through_portal(window, file, true);
+        }
+        return;
+    }
     let name = files
         .first()
         .and_then(|f| f.basename())

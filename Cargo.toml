@@ -1,6 +1,6 @@
 [package]
 name = "patrone-file-manager"
-version = "0.3.12"
+version = "0.3.13"
 edition = "2024"
 # Ubuntu 26.04's rustc, which builds the package
 rust-version = "1.93"

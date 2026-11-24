@@ -159,9 +159,10 @@ fn parse_acl(text: &str) -> Acl {
 /// The item's ACL, or `None` where there are none to have (getfacl isn't
 /// installed, or the file system can't).
 fn read_acl(path: &Path) -> Option<Acl> {
-    let output = std::process::Command::new("getfacl")
+    let output = crate::host::command("getfacl")
         .args(["--omit-header", "--absolute-names", "--no-effective", "--"])
         .arg(path)
+        .std()
         .output()
         .ok()?;
     output
@@ -176,7 +177,7 @@ struct Group {
     members: Vec<String>,
 }
 
-fn read_lines(path: &str) -> Vec<Vec<String>> {
+fn read_lines(path: &Path) -> Vec<Vec<String>> {
     std::fs::read_to_string(path)
         .unwrap_or_default()
         .lines()
@@ -187,7 +188,7 @@ fn read_lines(path: &str) -> Vec<Vec<String>> {
 
 /// The accounts people sign in with, root, and the item's owner.
 fn users(owner: &str) -> Vec<String> {
-    let mut users: Vec<String> = read_lines("/etc/passwd")
+    let mut users: Vec<String> = read_lines(&crate::host::inside(Path::new("/etc/passwd")))
         .into_iter()
         .filter(|fields| fields.len() > 2)
         .filter(|fields| {
@@ -203,7 +204,7 @@ fn users(owner: &str) -> Vec<String> {
 }
 
 fn groups() -> Vec<Group> {
-    let mut groups: Vec<Group> = read_lines("/etc/group")
+    let mut groups: Vec<Group> = read_lines(&crate::host::inside(Path::new("/etc/group")))
         .into_iter()
         .filter(|fields| fields.len() > 2)
         .map(|fields| Group {
@@ -230,7 +231,7 @@ fn me() -> Account {
     let uid = std::fs::metadata("/proc/self")
         .map(|meta| meta.uid())
         .unwrap_or(u32::MAX);
-    let account = read_lines("/etc/passwd")
+    let account = read_lines(&crate::host::inside(Path::new("/etc/passwd")))
         .into_iter()
         .find(|fields| fields.len() > 3 && fields[2].parse() == Ok(uid));
     Account {
@@ -1084,6 +1085,7 @@ async fn run_all(lines: &[Vec<String>]) -> Result<(), String> {
 
 /// Runs a command; on failure, its exit status and what it said.
 async fn run(argv: &[String]) -> Result<(), (i32, String)> {
+    let argv = crate::host::argv(argv.iter().map(Into::into).collect(), None, &[]);
     let argv: Vec<&std::ffi::OsStr> = argv.iter().map(|arg| arg.as_ref()).collect();
     let process = gio::Subprocess::newv(
         &argv,

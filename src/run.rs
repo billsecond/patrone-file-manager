@@ -44,7 +44,11 @@ pub fn run(text: &str, folder: &Path) -> Result<bool, String> {
         STAND_INS
             .iter()
             .find(|(windows, _)| name.eq_ignore_ascii_case(windows))
-            .and_then(|(_, programs)| programs.iter().find_map(glib::find_program_in_path))
+            .and_then(|(_, programs)| {
+                programs
+                    .iter()
+                    .find_map(|program| crate::host::find_program(program))
+            })
     });
     let Some(program) = program else {
         if argv.len() == 1 && PROMPTS.iter().any(|p| name.eq_ignore_ascii_case(p)) {
@@ -58,9 +62,9 @@ pub fn run(text: &str, folder: &Path) -> Result<bool, String> {
         // A shell typed alone: a terminal running it, here.
         terminal(folder, Some(&[program.to_string_lossy().into_owned()]))
     } else if has_window(&program) {
-        let mut command = Command::new(&program);
+        let mut command = crate::host::command(&program);
         command.args(&argv[1..]).current_dir(folder);
-        launch(command)
+        launch(command.std())
     } else {
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
         let script = format!("{text}\nexec {shell}");
@@ -87,11 +91,11 @@ fn find(name: &str, folder: &Path) -> Option<PathBuf> {
         });
         return executable.then_some(path);
     }
-    glib::find_program_in_path(name)
+    crate::host::find_program(name)
 }
 
 fn is_shell(program: &Path) -> bool {
-    std::fs::read_to_string("/etc/shells").is_ok_and(|shells| {
+    std::fs::read_to_string(crate::host::inside(Path::new("/etc/shells"))).is_ok_and(|shells| {
         shells
             .lines()
             .filter_map(|line| Path::new(line.trim()).file_name())
@@ -110,7 +114,9 @@ fn has_window(program: &Path) -> bool {
                 !arg.starts_with('-') && !arg.contains('=') && !arg.starts_with('%')
             })
             .take(2)
-            .any(|arg| glib::find_program_in_path(arg).as_deref() == Some(program));
+            .any(|arg| {
+                crate::host::find_program(&arg.to_string_lossy()).as_deref() == Some(program)
+            });
         runs_it && !runs_in_terminal(app)
     })
 }
@@ -125,20 +131,20 @@ fn runs_in_terminal(app: &gio::AppInfo) -> bool {
 
 /// Opens a terminal in `folder`, running `command` if there is one.
 pub fn terminal(folder: &Path, command: Option<&[String]>) -> bool {
-    let mut xdg = Command::new("xdg-terminal-exec");
+    let mut xdg = crate::host::command("xdg-terminal-exec");
     xdg.current_dir(folder);
     if let Some(command) = command {
         xdg.args(command);
     }
-    if launch(xdg) {
+    if crate::host::find_program("xdg-terminal-exec").is_some() && launch(xdg.std()) {
         return true;
     }
-    let mut debian = Command::new("x-terminal-emulator");
+    let mut debian = crate::host::command("x-terminal-emulator");
     debian.current_dir(folder);
     if let Some(command) = command {
         debian.arg("-e").args(command);
     }
-    launch(debian)
+    launch(debian.std())
 }
 
 /// Starts a program and reaps it when it exits.

@@ -1,0 +1,57 @@
+# Patrone File Manager's Flatpak. tools/build-flatpak.sh builds it: it puts
+# the source (with its crates vendored, so the build runs offline) in src/
+# beside a copy of this file.
+#
+# A file manager is the computer's files, so this one sees them all
+# (--filesystem=host) and runs the computer's programs (terminals, gio,
+# udisksctl, thumbnailers, chmod and pkexec) through flatpak-spawn --host.
+# The computer's system folders are under /run/host in the sandbox, which
+# src/host.rs maps to and from the paths the computer knows. Files open in
+# the computer's apps through the desktop's portal. The desktop (--desktop)
+# is PatroneOS's taskbar's, and isn't in the Flatpak.
+id: org.patrone.FileManager
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: patrone-file-manager
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Every file and drive, and the computer's own system folders (/run/host)
+  - --filesystem=host
+  - --filesystem=host-os:ro
+  - --filesystem=host-etc:ro
+  # The Recycle Bin, network places and drives: GVfs, on the computer
+  - --talk-name=org.gtk.vfs.*
+  - --filesystem=xdg-run/gvfs
+  - --filesystem=xdg-run/gvfsd
+  # The computer's programs
+  - --talk-name=org.freedesktop.Flatpak
+  # "Show in folder", from other apps (while it's running)
+  - --own-name=org.freedesktop.FileManager1
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+modules:
+  - name: patrone-file-manager
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/patrone-file-manager/cargo
+    build-commands:
+      - cargo build --release --frozen
+      - install -Dm755 target/release/patrone-file-manager /app/bin/patrone-file-manager
+      - install -Dm644 -t /app/share/applications data/org.patrone.FileManager.desktop
+      - install -Dm644 -t /app/share/icons/hicolor/scalable/apps data/org.patrone.FileManager.svg
+      - install -Dm644 -t /app/share/metainfo data/org.patrone.FileManager.metainfo.xml
+      # Folder Options' settings
+      - install -Dm644 -t /app/share/glib-2.0/schemas data/org.patrone.FileManager.gschema.xml
+      - glib-compile-schemas /app/share/glib-2.0/schemas
+      - gzip -9n < third-party-licenses.txt > third-party-licenses.txt.gz
+      - install -Dm644 -t /app/share/doc/patrone-file-manager LICENSE third-party-licenses.txt.gz
+    sources:
+      - type: dir
+        path: src

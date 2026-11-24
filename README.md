@@ -20,6 +20,21 @@ own look and colors. App ID
   Installed on its own it leaves GNOME's Files (Nautilus) as it is:
   hiding Files and opening folders with this one is PatroneOS's
   `patrone-default-apps`.
+- **Any Linux, as a Flatpak**, kept up to date: from Patrone's app index
+  (with Flathub, for the GNOME runtime it runs on):
+
+  ```
+  flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+  flatpak remote-add --if-not-exists patrone-app-index https://billsecond.github.io/patrone-app-index/patrone-app-index.flatpakrepo
+  flatpak install patrone-app-index org.patrone.FileManager
+  ```
+
+  It sees every file and drive, and runs the computer's own programs
+  (below); files open in the computer's apps, through the desktop's portal.
+  What it doesn't do there: draw the desktop (that's PatroneOS's taskbar's),
+  list apps by name under "Open with" (Choose another app asks the
+  desktop instead), follow Patrone Settings' themes, or answer "show in
+  folder" while it isn't running.
 
 Its history up to here is from PatroneOS's repository,
 [billsecond/patroneos](https://github.com/billsecond/patroneos), where it
@@ -493,11 +508,44 @@ process of its own; only the taskbar starts it.
   Ctrl+Z on the desktop undoes what was done there, a drop from a window
   included); the name editor growing to more lines for a long name.
 
+## Flatpak
+
+`tools/build-flatpak.sh` builds `flatpak/org.patrone.FileManager.yml` on
+the GNOME 50 runtime, with the crates vendored, into `out/`: the bundle and
+a tarball of the same app's files, which Patrone's app index has Flatpak
+download. `src/host.rs` is how it reaches the computer from the sandbox;
+installed as a package, each of its functions gives back what it's given.
+
+- **Files:** the computer's are at their own paths (`--filesystem=host`),
+  except its system folders (/usr, /etc, /bin, /sbin, /lib*), which the
+  sandbox has under /run/host. A tab shows a folder by the path it can be
+  read at (`host::inside`, in `Tab::show`), so its listing and files are
+  the computer's; the address bar, breadcrumbs, Up and "Copy as path" show
+  the computer's path (`host::outside`, `host::parent`).
+- **Programs** (terminals, `gio launch`, Run, udisksctl, getfacl, chmod,
+  pkexec, thumbnailers, Patrone Unpack, xdg-email, bluetooth-sendto,
+  gsettings for the wallpaper) run on the computer: `host::command` and
+  `host::argv` put `flatpak-spawn --host` in front, and give each /run/host
+  path among the arguments, and the folder, as the computer's.
+  `host::find_program` looks on the computer's PATH.
+- **Opening** goes through the desktop's portal (`commands::open_through_portal`):
+  the computer's app for the file, or its choice of app for Choose another
+  app.
+- **The account's shared folders:** the Flatpak points XDG_CACHE_HOME and
+  XDG_DATA_HOME at ~/.cache and ~/.local/share at start-up
+  (`host::use_the_accounts_folders`), so thumbnails, recent files and
+  thumbnailers are the account's, not the sandbox's.
+
+`patrone-file-manager --list FOLDER` prints a folder's names as a tab
+reads it, which `.github/workflows/flatpak.yml` checks through the
+installed Flatpak (`tools/test-flatpak.sh`): its `/usr/share` must be the
+computer's.
+
 ## Releases
 
 A tag `vVERSION`, where VERSION is `debian/changelog`'s, makes a GitHub
 release (`.github/workflows/release.yml`): the `.deb`, built in a clean
-Ubuntu 26.04 container, the source tarball (`git archive` of the tag) and
-`SHA256SUMS`. PatroneOS builds its own package from that tarball: its
+Ubuntu 26.04 container, the source tarball (`git archive` of the tag), the
+Flatpak bundle and its tarball, and `SHA256SUMS`. PatroneOS builds its own package from that tarball: its
 repository pins the release in `packaging/patrone-file-manager/release.txt`, and moving
 the pin on its `main` publishes it to Patrone's apt repository.

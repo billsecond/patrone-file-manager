@@ -282,7 +282,15 @@ fn find_or_make(uri: &str, path: &Path, mtime: i64, mime: &str, bucket: Bucket) 
     } else {
         let thumbnailer =
             THUMBNAILERS.with(|list| list.iter().find(|t| t.handles(mime)).cloned())?;
-        let scratch = std::env::temp_dir().join(format!(
+        // In the Flatpak the thumbnailer runs on the computer, so its output
+        // goes where both can see it: the account's own cache folder
+        let scratch_dir = if crate::host::sandboxed() {
+            glib::user_cache_dir().join("patrone-file-manager")
+        } else {
+            std::env::temp_dir()
+        };
+        let _ = std::fs::create_dir_all(&scratch_dir);
+        let scratch = scratch_dir.join(format!(
             "patrone-thumb-{}-{}.png",
             std::process::id(),
             glib::random_int()
@@ -365,8 +373,9 @@ impl Thumbnailer {
         let Some((program, rest)) = args.split_first() else {
             return false;
         };
-        std::process::Command::new(program)
+        crate::host::command(program)
             .args(rest)
+            .std()
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -378,11 +387,19 @@ impl Thumbnailer {
 
 fn load_thumbnailers() -> Vec<Thumbnailer> {
     let mut dirs: Vec<PathBuf> = vec![glib::user_data_dir().join("thumbnailers")];
-    dirs.extend(
-        glib::system_data_dirs()
-            .iter()
-            .map(|dir| dir.join("thumbnailers")),
-    );
+    if crate::host::sandboxed() {
+        // The computer's thumbnailers, which run on it
+        dirs.extend(
+            ["/usr/local/share/thumbnailers", "/usr/share/thumbnailers"]
+                .map(|dir| crate::host::inside(Path::new(dir))),
+        );
+    } else {
+        dirs.extend(
+            glib::system_data_dirs()
+                .iter()
+                .map(|dir| dir.join("thumbnailers")),
+        );
+    }
     let mut list = Vec::new();
     for dir in dirs {
         let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -405,7 +422,7 @@ fn load_thumbnailers() -> Vec<Thumbnailer> {
                 continue;
             };
             if let Ok(try_exec) = file.string(GROUP, "TryExec")
-                && glib::find_program_in_path(try_exec.as_str()).is_none()
+                && crate::host::find_program(try_exec.as_str()).is_none()
             {
                 continue;
             }

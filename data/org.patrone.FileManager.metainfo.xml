@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Patrone File Manager's listing: GNOME Software (and Patrone Software)
+     show it, and Patrone's app index reads it from the Flatpak. -->
+<component type="desktop-application">
+  <id>org.patrone.FileManager</id>
+  <name>Patrone File Manager</name>
+  <summary>Browse and manage files the way Windows users expect</summary>
+  <developer id="com.patroneos">
+    <name>William Daugherty</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      Patrone File Manager works the way people who have used Windows
+      expect, with the layout, menus and keys they know.
+    </p>
+    <ul>
+      <li>Tabs, the command bar, breadcrumbs and the navigation pane, with Quick access, Home, Gallery and Computer</li>
+      <li>Eight views, and the details and preview panes</li>
+      <li>Full right-click menus, Folder Options and Properties</li>
+      <li>Copying, moving and deleting with progress, conflict handling and undo</li>
+      <li>The Recycle Bin, removable drives, mapped network drives and network places</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">org.patrone.FileManager.desktop</launchable>
+  <url type="homepage">https://github.com/billsecond/patrone-file-manager</url>
+  <url type="bugtracker">https://github.com/billsecond/patrone-file-manager/issues</url>
+  <url type="vcs-browser">https://github.com/billsecond/patrone-file-manager</url>
+  <provides>
+    <binary>patrone-file-manager</binary>
+  </provides>
+  <categories>
+    <category>System</category>
+    <category>FileManager</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.3.13" date="2026-11-24">
+      <description>
+        <p>Patrone File Manager as a Flatpak, for any Linux, with the computer's files, programs and apps.</p>
+      </description>
+    </release>
+    <release version="0.3.12" date="2026-11-24">
+      <description>
+        <p>Built from its own repository.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,3 +1,20 @@
+patrone-file-manager (0.3.13) resolute; urgency=medium
+
+  * A Flatpak too, for any Linux (flatpak/org.patrone.FileManager.yml,
+    tools/build-flatpak.sh), with the computer's files and programs: its
+    system folders are read where the sandbox has them and shown by the
+    computer's paths, its programs run through flatpak-spawn --host, and
+    files open in its apps through the desktop's portal (src/host.rs).
+    Each release has the bundle, and Patrone's app index lists it. As a
+    package, nothing changes.
+  * "Run in Terminal" and the navigation pane's "Open in Terminal" use the
+    same terminal as "Open in Terminal" elsewhere.
+  * --list FOLDER prints a folder's names, and quits.
+  * An AppStream listing (org.patrone.FileManager.metainfo.xml), for
+    GNOME Software and the app index.
+
+ -- William Daugherty <31995458+billsecond@users.noreply.github.com>  Tue, 24 Nov 2026 09:00:00 -0600
+
 patrone-file-manager (0.3.12) resolute; urgency=medium
 
   * Built from its own repository, billsecond/patrone-file-manager,

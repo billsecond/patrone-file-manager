@@ -53,7 +53,11 @@ pub fn window_controls(side: gtk::PackType) -> gtk::WindowControls {
     controls.set_valign(gtk::Align::Center);
     // GTK's header bars do this themselves. Left showing, an empty set's
     // margins in some button styles pushed the tabs along.
-    controls.bind_property("empty", &controls, "visible").invert_boolean().sync_create().build();
+    controls
+        .bind_property("empty", &controls, "visible")
+        .invert_boolean()
+        .sync_create()
+        .build();
     controls
 }
 
@@ -270,7 +274,7 @@ pub fn copy_name(folder: &gio::File, name: &str, is_dir: bool) -> String {
 /// The path to show for a file: a local path, else its URI.
 pub fn display_path(file: &gio::File) -> String {
     match file.path() {
-        Some(path) => path.to_string_lossy().into_owned(),
+        Some(path) => crate::host::outside(&path).to_string_lossy().into_owned(),
         None => file.parse_name().into(),
     }
 }

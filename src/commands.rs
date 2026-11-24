@@ -130,7 +130,7 @@ pub fn launch(window: &Window, info: &gio::FileInfo) {
     if mime == "application/x-desktop" {
         // GLib's own launcher reads the entry and starts the app.
         if let Some(path) = file.path()
-            && std::process::Command::new("gio")
+            && crate::host::command("gio")
                 .arg("launch")
                 .arg(&path)
                 .spawn()
@@ -175,15 +175,10 @@ pub fn launch(window: &Window, info: &gio::FileInfo) {
             let folder = path.parent().map(PathBuf::from).unwrap_or_default();
             match choice {
                 0 => {
-                    let _ = std::process::Command::new(&path)
-                        .current_dir(&folder)
-                        .spawn();
+                    let _ = crate::host::command(&path).current_dir(&folder).spawn();
                 }
                 1 => {
-                    let _ = std::process::Command::new("xdg-terminal-exec")
-                        .arg(&path)
-                        .current_dir(&folder)
-                        .spawn();
+                    crate::run::terminal(&folder, Some(&[path.to_string_lossy().into_owned()]));
                 }
                 2 => open_with_default(&window, &file, "text/plain"),
                 _ => {}
@@ -217,10 +212,7 @@ fn allow_launching_then_run(window: &Window, info: &gio::FileInfo) {
                 if set_launching_allowed(&file, true).await
                     && let Some(path) = file.path()
                 {
-                    let _ = std::process::Command::new("gio")
-                        .arg("launch")
-                        .arg(&path)
-                        .spawn();
+                    let _ = crate::host::command("gio").arg("launch").arg(&path).spawn();
                 }
             }
             1 => open_with_default(&window, &file, "text/plain"),
@@ -282,10 +274,35 @@ pub fn toggle_launching(window: &Window) {
 }
 
 fn open_with_default(window: &Window, file: &gio::File, mime: &str) {
+    if crate::host::sandboxed() {
+        return open_through_portal(window, file, false);
+    }
     match gio::AppInfo::default_for_type(mime, !file.is_native()) {
         Some(app) => open_with(window, &app, std::slice::from_ref(file)),
         None => crate::openwith::show(window, vec![file.clone()], mime.to_owned()),
     }
+}
+
+/// In the Flatpak, the sandbox's apps aren't the computer's: the desktop's
+/// portal opens the file in the computer's app for it, or asks which.
+pub fn open_through_portal(window: &Window, file: &gio::File, ask: bool) {
+    let launcher = gtk::FileLauncher::new(Some(file));
+    launcher.set_always_ask(ask);
+    let (w, file) = (window.clone(), file.clone());
+    launcher.launch(
+        parent(window).as_ref(),
+        gio::Cancellable::NONE,
+        move |result| match result {
+            Ok(()) => remember_recent(&file),
+            Err(error) if !error.matches(gtk::DialogError::Dismissed) => dialogs::error(
+                parent(&w).as_ref(),
+                "Open",
+                "This file couldn't be opened.",
+                &error.to_string(),
+            ),
+            Err(_) => {}
+        },
+    );
 }
 
 /// Opens files with a chosen app.
@@ -572,9 +589,9 @@ pub fn share(window: &Window) {
             crate::menu::Icon::Glyph("share"),
             "Send by email",
             None,
-            glib::find_program_in_path("xdg-email").is_some(),
+            crate::host::find_program("xdg-email").is_some(),
             move || {
-                let mut command = std::process::Command::new("xdg-email");
+                let mut command = crate::host::command("xdg-email");
                 for path in &paths {
                     command.arg("--attach").arg(path);
                 }
@@ -582,7 +599,7 @@ pub fn share(window: &Window) {
             },
         );
     }
-    if glib::find_program_in_path("bluetooth-sendto").is_some() {
+    if crate::host::find_program("bluetooth-sendto").is_some() {
         let paths = paths.clone();
         menu.item(
             crate::menu::Icon::Glyph("send-to"),
@@ -590,7 +607,7 @@ pub fn share(window: &Window) {
             None,
             true,
             move || {
-                let _ = std::process::Command::new("bluetooth-sendto")
+                let _ = crate::host::command("bluetooth-sendto")
                     .args(&paths)
                     .spawn();
             },
@@ -1005,6 +1022,19 @@ pub fn restore(window: &Window, all: bool) {
 pub fn set_background(window: &Window) {
     let files = window.tab().selected_files();
     let Some(file) = files.first() else { return };
+    if crate::host::sandboxed() {
+        // The sandbox's settings aren't the desktop's: the computer's gsettings
+        let uri = gio::File::for_path(crate::host::outside(&file.path().unwrap_or_default())).uri();
+        for (key, value) in [
+            ("picture-uri", uri.as_str()),
+            ("picture-uri-dark", uri.as_str()),
+        ] {
+            let _ = crate::host::command("gsettings")
+                .args(["set", "org.gnome.desktop.background", key, value])
+                .spawn();
+        }
+        return;
+    }
     let schema = gio::SettingsSchemaSource::default()
         .and_then(|source| source.lookup("org.gnome.desktop.background", true));
     if schema.is_none() {
