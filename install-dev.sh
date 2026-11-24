@@ -2,9 +2,9 @@
 # Builds Patrone File Manager and installs it for the current user, so it can
 # be tried in the dev VM's desktop before it's packaged. No sudo needed.
 #
-#   ./file-manager/install-dev.sh            install the app, its launcher entry,
+#   ./install-dev.sh            install the app, its launcher entry,
 #                                            icon and settings schema
-#   ./file-manager/install-dev.sh --default  also open folders with it in place of
+#   ./install-dev.sh --default  also open folders with it in place of
 #                                            Ubuntu's Files (Nautilus), and put it
 #                                            in the dock in Files' place
 set -euo pipefail

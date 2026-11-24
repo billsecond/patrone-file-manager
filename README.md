@@ -7,6 +7,26 @@ own look and colors. App ID
 `org.patrone.FileManager`, command `patrone-file-manager`, package
 `patrone-file-manager`.
 
+## Installing
+
+- **PatroneOS** has it already.
+- **Ubuntu 26.04 and systems built on it:** from Patrone's apt
+  repository, which keeps it up to date
+  ([billsecond/patrone-apt](https://github.com/billsecond/patrone-apt),
+  "Patrone's apps on Ubuntu"), then `sudo apt install patrone-file-manager`. Or
+  download the `.deb` from the
+  [latest release](https://github.com/billsecond/patrone-file-manager/releases/latest)
+  and open it.
+  Installed on its own it leaves GNOME's Files (Nautilus) as it is:
+  hiding Files and opening folders with this one is PatroneOS's
+  `patrone-default-apps`.
+
+Its history up to here is from PatroneOS's repository,
+[billsecond/patroneos](https://github.com/billsecond/patroneos), where it
+lived in its own folder; pull request numbers in those commits are that
+repository's, and so are paths below such as `docs/`, `desktop/`,
+`shell/gnome/` and `scripts/`.
+
 ## What it does
 
 - **Window buttons:** GTK's own minimize, maximize and close, as in every
@@ -391,8 +411,8 @@ On the dev VM (GTK 4.22 and the GLib tools come from the desktop and
 `scripts/bootstrap-dev-vm.sh`):
 
 ```
-cargo run --manifest-path file-manager/Cargo.toml -- ~/Documents
-cargo test --manifest-path file-manager/Cargo.toml
+cargo run -- ~/Documents
+cargo test
 ```
 
 `cargo run` uses the settings schema compiled into the build folder, so
@@ -400,12 +420,12 @@ nothing has to be installed. To install it for your user, with a launcher
 entry, icon and settings:
 
 ```
-./file-manager/install-dev.sh             # the app
-./file-manager/install-dev.sh --default   # and open folders with it, and put it in the dock, in place of Files
+./install-dev.sh             # the app
+./install-dev.sh --default   # and open folders with it, and put it in the dock, in place of Files
 ```
 
-The package is built with `packaging/build.sh patrone-file-manager -d` (see
-`packaging/README.md`). `patrone-default-apps` makes it the app for folders
+The package is built with `tools/build-deb.sh -d` (`-d` skips the
+Build-Depends check, with Rust from rustup), into `out/`. `patrone-default-apps` makes it the app for folders
 system-wide (`inode/directory` in `/etc/xdg/mimeapps.list`) and puts it in
 the favorites in Files' place, so the taskbar's Files button opens it.
 
@@ -472,3 +492,12 @@ process of its own; only the taskbar starts it.
   placement); undo shared with File Manager's windows (each keeps its own:
   Ctrl+Z on the desktop undoes what was done there, a drop from a window
   included); the name editor growing to more lines for a long name.
+
+## Releases
+
+A tag `vVERSION`, where VERSION is `debian/changelog`'s, makes a GitHub
+release (`.github/workflows/release.yml`): the `.deb`, built in a clean
+Ubuntu 26.04 container, the source tarball (`git archive` of the tag) and
+`SHA256SUMS`. PatroneOS builds its own package from that tarball: its
+repository pins the release in `packaging/patrone-file-manager/release.txt`, and moving
+the pin on its `main` publishes it to Patrone's apt repository.
